@@ -159,10 +159,12 @@ class Cognito(object):
         self.refresh_token = refresh_token
         self.client_secret = client_secret
         self.token_type = None
+        self.custom_attributes = None
+        self.base_attributes = None
 
         boto3_client_kwargs = {}
         if access_key and secret_key:
-            boto3_client_kwargs['aws_access_key_id'] = access_key
+            boto3_client_kwargs['aws_access_key'] = access_key
             boto3_client_kwargs['aws_secret_access_key'] = secret_key
         if user_pool_region:
             boto3_client_kwargs['region_name'] = user_pool_region
@@ -260,7 +262,21 @@ class Cognito(object):
             expired = False
         return expired
 
-    def register(self, username, password, attr_map=None, **kwargs):
+    def add_base_attributes(self, test=None ,**kwargs):
+        self.base_attributes=kwargs
+
+    def add_custom_attributes(self,test=None, **kwargs):
+
+        custom_key='custom'
+        custom_attributes={}
+        
+        for old_key,value in kwargs.items():
+            new_key=custom_key+':'+old_key
+            custom_attributes[new_key]= value
+        
+        self.custom_attributes= custom_attributes
+
+    def register(self, username, password, attr_map=None):
         """
         Register the user. Other base attributes from AWS Cognito User Pools
         are  address, birthdate, email, family_name (last name), gender,
@@ -283,15 +299,22 @@ class Cognito(object):
             }
         }
         """
-        user_attrs = [{'Name': key, 'Value': value} for key, value in kwargs.items()]
+
+        attributes= dict(self.base_attributes.items() + self.custom_attributes.items())
+        cognito_attributes = dict_to_cognito(attributes,attr_map)
+
+
+        user_attrs = [{'Name': key, 'Value': value} for key, value in attributes.items()]
+
+       
         response = self.client.sign_up(
             ClientId=self.client_id,
             Username=username,
             Password=password,
-            UserAttributes=dict_to_cognito(kwargs,attr_map)
+            UserAttributes= cognito_attributes
         )
-        kwargs.update(username=username, password=password)
-        self._set_attributes(response, kwargs)
+
+        self._set_attributes(response, attributes)
 
         response.pop('ResponseMetadata')
         return response
