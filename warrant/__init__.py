@@ -164,7 +164,7 @@ class Cognito(object):
 
         boto3_client_kwargs = {}
         if access_key and secret_key:
-            boto3_client_kwargs['aws_access_key'] = access_key
+            boto3_client_kwargs['aws_access_key_id'] = access_key
             boto3_client_kwargs['aws_secret_access_key'] = secret_key
         if user_pool_region:
             boto3_client_kwargs['region_name'] = user_pool_region
@@ -302,11 +302,7 @@ class Cognito(object):
 
         attributes= dict(self.base_attributes.items() + self.custom_attributes.items())
         cognito_attributes = dict_to_cognito(attributes,attr_map)
-
-
         user_attrs = [{'Name': key, 'Value': value} for key, value in attributes.items()]
-
-       
         response = self.client.sign_up(
             ClientId=self.client_id,
             Username=username,
@@ -314,6 +310,7 @@ class Cognito(object):
             UserAttributes= cognito_attributes
         )
 
+        attributes.update(username=username, password=password)
         self._set_attributes(response, attributes)
 
         response.pop('ResponseMetadata')
